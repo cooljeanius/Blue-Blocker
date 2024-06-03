@@ -9,8 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       filename: ${{ steps.build.outputs.filename }}
+      sourcefile: ${{ steps.src.outputs.sourcefile }}
     steps:
     - uses: actions/checkout@v4
+    - name: debug
+      run: |
+        echo "github.event:" "${{ toJSON(github.event) }}"
+    - name: zip source code
+      id: src
+      run: |
+        export SOURCE_FILENAME="blue-blocker-source-$(make version).zip"
+        zip "$SOURCE_FILENAME" -r * .* -x ".git/*" "build/*" "node_modules/*" "../*"
+        echo "sourcefile=$SOURCE_FILENAME" >> "$GITHUB_OUTPUT"
     - name: Set up Node.js
       uses: actions/setup-node@v4.0.2
       with:
@@ -25,16 +35,17 @@ jobs:
         make firefox
         echo "filename=blue-blocker-firefox-$(make version).zip" >> "$GITHUB_OUTPUT"
     - name: publish firefox
-      uses: wdzeng/firefox-addon@v1.1.0-alpha.0
+      uses: browser-actions/release-firefox-addon@v0.1.3  # https://github.com/marketplace/actions/release-firefox-addon#inputs
       with:
-        addon-guid: "{119be3f3-597c-4f6a-9caf-627ee431d374}"
-        xpi-path: "${{ steps.build.outputs.filename }}"
-        self-hosted: false
-        release-notes: "{\"en-US\": toJSON(${{ github.event.body }})}" # this should be the content of the release, make sure to include changelog
-        approval-notes: "source code for this version is available at https://github.com/kheina-com/Blue-Blocker/releases/tag/${{ github.event.tag_name }}\nrunning `npm run build` and then `make firefox` should build the addon package, then load and use twitter. you should start seeing users be blocked fairly quickly"
-        license: MPL-2.0
-        jwt-issuer: ${{ secrets.MOZILLA_ADDONS_JWT_ISSUER }}
-        jwt-secret: ${{ secrets.MOZILLA_ADDONS_JWT_SECRET }}
+        addon-id: "{119be3f3-597c-4f6a-9caf-627ee431d374}"
+        addon-path: "${{ steps.build.outputs.filename }}"
+        source-path: "${{ steps.src.outputs.sourcefile }}"
+        approval-note: "The extension can be built and tested locally using `npm run build && make firefox`. Simply navigate to twitter.com and you should see users being queued and blocked fairly quickly."
+        release-note: "${{ toJSON(github.event.release.body) }}" # this should be the content of the release, make sure to include a changelog
+        compatibility-firefox-min: "48.0"
+        license: "MPL-2.0"
+        auth-api-issuer: ${{ secrets.MOZILLA_ADDONS_JWT_ISSUER }}
+        auth-api-secret: ${{ secrets.MOZILLA_ADDONS_JWT_SECRET }}
 
   Release-Chrome:
     runs-on: ubuntu-latest
