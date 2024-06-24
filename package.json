@@ -32,7 +32,7 @@
 		"@types/chrome": "^0.0.268",
 		"@types/firefox-webext-browser": "^120.0.3",
 		"prettier": "^3.3.2",
-		"typescript": "^5.4.5",
+		"typescript": "^5.5.2",
 		"vite": "^2.9.18"
 	}
 }
