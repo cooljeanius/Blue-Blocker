@@ -22,7 +22,7 @@ jobs:
         zip "$SOURCE_FILENAME" -r * .* -x ".git/*" "build/*" "node_modules/*" "../*"
         echo "sourcefile=$SOURCE_FILENAME" >> "$GITHUB_OUTPUT"
     - name: Set up Node.js
-      uses: actions/setup-node@v4.0.2
+      uses: actions/setup-node@v4.0.3
       with:
         node-version: '18.x'
     - name: Install dependencies
@@ -54,7 +54,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Node.js
-      uses: actions/setup-node@v4.0.2
+      uses: actions/setup-node@v4.0.3
       with:
         node-version: '18.x'
     - name: Install dependencies
