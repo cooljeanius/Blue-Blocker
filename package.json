@@ -29,7 +29,7 @@
 	},
 	"devDependencies": {
 		"@crxjs/vite-plugin": "^1.0.14",
-		"@types/chrome": "^0.0.268",
+		"@types/chrome": "^0.0.269",
 		"@types/firefox-webext-browser": "^120.0.4",
 		"prettier": "^3.3.3",
 		"typescript": "^5.5.3",
