@@ -6,7 +6,6 @@ import {
 	IsVerifiedAction,
 	ReasonExternal,
 	RemoveFromHistoryAction,
-	SoupcanExtensionId,
 	SuccessStatus,
 	DefaultOptions,
 	AddToQueueAction,
@@ -151,9 +150,9 @@ api.runtime.onMessageExternal.addListener((m, s, r) => {
 	(async (message, sender) => {
 		const refid = RefId();
 		console.debug(logstr, refid, 'ext recv:', message, sender);
-		const integrations = (
-			await api.storage.local.get({ soupcanIntegration: false, integrations: {} })
-		).integrations as { [id: string]: Integration };
+		const integrations = (await api.storage.local.get({ integrations: {} })).integrations as {
+			[id: string]: Integration;
+		};
 		const senderId = sender.id ?? '';
 		if (!integrations.hasOwnProperty(senderId)) {
 			if (message?.action === registerAction) {
@@ -163,18 +162,19 @@ api.runtime.onMessageExternal.addListener((m, s, r) => {
 					name: reg_request.name,
 					state: IntegrationStateDisabled,
 				};
-				api.storage.local.set({
-					integrations,
-					[EventKey]: {
-						type: MessageEvent,
-						message: `<p>The extension <b>${
-							reg_request.name
-						}</b> would like to integrate with BlueBlocker.<br>Visit the <a href="${api.runtime.getURL(
-							'/src/pages/integrations/index.html',
-						)}" target="_blank">integrations page</a> to complete set up.</p>`,
-						options: { html: true },
-					},
-				});
+				// TODO: eliminate html here, cannot generate elements directly as it's not the same document. must be json-serializable
+				// api.storage.local.set({
+				// 	integrations,
+				// 	[EventKey]: {
+				// 		type: MessageEvent,
+				// 		message: `<p>The extension <b>${
+				// 			reg_request.name
+				// 		}</b> would like to integrate with BlueBlocker.<br>Visit the <a href="${api.runtime.getURL(
+				// 			'/src/pages/integrations/index.html',
+				// 		)}" target="_blank">integrations page</a> to complete set up.</p>`,
+				// 		options: { html: true },
+				// 	},
+				// });
 				response = {
 					status: SuccessStatus,
 					result: 'integration registered',

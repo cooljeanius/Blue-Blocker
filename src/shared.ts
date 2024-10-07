@@ -8,7 +8,6 @@ import {
 	ReasonBlueVerified,
 	ReasonBusinessVerified,
 	ReasonMap,
-	SoupcanExtensionId,
 	ErrorEvent,
 	EventKey,
 	MessageEvent,
@@ -21,6 +20,8 @@ import {
 	IntegrationStateReceiveOnly,
 	ReasonDisallowedWordsOrEmojis,
 	ReasonUsingBlueFeatures,
+	SoupcanExtensionId,
+	IntegrationStateSendAndReceive,
 } from './constants';
 
 import {
@@ -245,14 +246,23 @@ api.storage.local.onChanged.addListener(items => {
 						const parent = b.parentNode as ParentNode;
 						parent.removeChild(b);
 					};
-					const screen_name = EscapeHtml(user.screen_name); // this shouldn't really do anything, but can't be too careful
-					MakeToast(
-						`${config.mute ? 'mut' : 'block'}ed ${EscapeHtml(
-							name,
-						)} (<a href="/${screen_name}">@${screen_name}</a>)`,
-						config,
-						{ html: true, elements: [b] },
+					const span = document.createElement('span');
+					span.appendChild(
+						document.createTextNode(
+							`${config.mute ? 'mut' : 'block'}ed ${EscapeHtml(name)} (`,
+						),
 					);
+					span.appendChild(
+						((): HTMLAnchorElement => {
+							const screen_name = EscapeHtml(user.screen_name); // this shouldn't really do anything, but can't be too careful
+							const a = document.createElement('a');
+							a.href = '/' + screen_name;
+							a.innerText = '@' + screen_name;
+							return a;
+						})(),
+					);
+					span.appendChild(document.createTextNode(')'));
+					MakeToast('', config, { elements: [span, b] });
 				}
 				break;
 
@@ -275,11 +285,21 @@ api.storage.local.onChanged.addListener(items => {
 				if (e.message) {
 					console.error(logstr, e.message, e);
 				}
-				MakeToast(
-					`<p>an error occurred! check the console and create an issue on <a href="https://github.com/kheina-com/Blue-Blocker/issues" target="_blank">GitHub</a></p>`,
-					config,
-					{ html: true, error: true },
+				const p = document.createElement('p');
+				p.appendChild(
+					document.createTextNode(
+						'an error occurred! check the console and create an issue on ',
+					),
 				);
+				p.appendChild(
+					((): HTMLAnchorElement => {
+						const a = document.createElement('a');
+						a.href = 'https://github.com/kheina-com/Blue-Blocker/issues';
+						a.innerText = 'GitHub';
+						return a;
+					})(),
+				);
+				MakeToast('', config, { error: true, elements: [p] });
 				break;
 
 			default:
@@ -312,18 +332,18 @@ function queueBlockUser(
 		blockUser.external_reason = external_reason;
 	}
 
-	QueuePush(blockUser);
-	api.storage.sync.get(DefaultOptions).then(_config => {
-		const config = _config as Config;
-		console.log(
-			logstr,
-			`queued ${FormatLegacyName(user.legacy)} for a ${
-				config.mute ? 'mute' : 'block'
-			} due to ${ReasonMap[reason]}.`,
+	QueuePush(blockUser)
+		.then(() => consumer.start()) // arrow func is required to maintain current context, passing the func shifts context and will result in an error
+		.then(() => api.storage.sync.get(DefaultOptions))
+		.then(config => config as Config)
+		.then(config =>
+			console.log(
+				logstr,
+				`queued ${FormatLegacyName(user.legacy)} for a ${
+					config.mute ? 'mute' : 'block'
+				} due to ${ReasonMap[reason]}.`,
+			),
 		);
-	});
-
-	consumer.start();
 }
 
 function checkBlockQueue(): Promise<void> {
@@ -662,19 +682,7 @@ export async function BlockBlueVerified(user: BlueBlockerUser, config: CompiledC
 				if (
 					// group for skip-verified option
 					config.skipVerified &&
-					(await new Promise((resolve, reject) => {
-						// basically, we're wrapping a promise around a promise to set a timeout on it
-						// in case the user's device was unable to set up the legacy db
-						function disableSkipLegacy() {
-							api.storage.sync.set({ skipVerified: false });
-							reject(legacyDbRejectMessage);
-						}
-						const timeout = setTimeout(disableSkipLegacy, 1000); // 1 second. indexed db is crazy fast (<10ms), this should be plenty
-						IsUserLegacyVerified(user.rest_id, user.legacy.screen_name)
-							.then(resolve)
-							.catch(disableSkipLegacy)
-							.finally(() => clearTimeout(timeout));
-					}))
+					(await IsUserLegacyVerified(user.rest_id, user.legacy.screen_name))
 				) {
 					console.log(
 						logstr,
@@ -752,35 +760,27 @@ export async function BlockBlueVerified(user: BlueBlockerUser, config: CompiledC
 	}
 
 	// external integrations always come last and have their own error handling
-	if (config.soupcanIntegration) {
-		// fire an event here to soupcan and check for transphobia
-		try {
-			const response = await api.runtime.sendMessage(SoupcanExtensionId, {
-				action: 'check_twitter_user',
-				screen_name: user.legacy.screen_name,
-			});
-			console.debug(logstr, `soupcan response for @${user.legacy.screen_name}:`, response);
-			if (response?.status === 'transphobic') {
-				queueBlockUser(user, String(user.rest_id), ReasonTransphobia);
-				return;
-			}
-		} catch (_e) {
-			const e = _e as Error;
-			console.debug(logstr, `soupcan error for @${user.legacy.screen_name}:`, e);
-			if (e.message === 'Could not establish connection. Receiving end does not exist.') {
-				api.storage.sync.set({ soupcanIntegration: false });
-				console.log(logstr, 'looks like soupcan was uninstalled, disabling integration.');
-			} else {
-				console.error(logstr, 'an unknown error occurred while messaging soupcan:', e);
-			}
-		}
-	}
 
 	let updateIntegrations = false;
 	api.storage.local
 		.get({ integrations: {} })
 		.then(items => items.integrations as { [id: string]: { name: string; state: number } })
 		.then(async integrations => {
+			if (config.soupcanIntegration) {
+				// migrate soupcan to the new system
+				updateIntegrations = true;
+
+				integrations[SoupcanExtensionId] = {
+					name: 'Soupcan',
+					state: IntegrationStateSendAndReceive,
+				};
+
+				// Set the variable so we don't loop with this batch
+				config.soupcanIntegration = false;
+				// Save the setting
+				api.storage.sync.set({ soupcanIntegration: false });
+			}
+
 			for (const [extensionId, integration] of Object.entries(integrations)) {
 				if (
 					!extensionId ||

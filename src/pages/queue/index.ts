@@ -1,6 +1,6 @@
-import { commafy, EscapeHtml, FormatLegacyName } from '../../utilities.js';
-import { api, logstr } from '../../constants.js';
-import { AddUserToQueue, ConnectDb, queueDbStore, WholeQueue } from '../../background/db.js';
+import { commafy, FormatLegacyName, UsernameElement } from '../../utilities';
+import { api, logstr } from '../../constants';
+import { AddUserToQueue, ConnectDb, queueDbStore, WholeQueue } from '../../background/db';
 import '../style.css';
 import './style.css';
 
@@ -42,17 +42,13 @@ function loadQueue() {
 			dbLimitReached.style.display = 'block';
 		}
 
-		queueDiv.innerHTML = '';
+		queueDiv.innerText = '';
 
 		cue.forEach(item => {
 			const { user, user_id } = item;
 			const div = document.createElement('div');
 
-			const p = document.createElement('p');
-			const screen_name = EscapeHtml(user.screen_name); // this shouldn't really do anything, but can't be too careful
-			p.innerHTML = `${EscapeHtml(
-				user.name,
-			)} (<a href="https://twitter.com/${screen_name}" target="_blank">@${screen_name}</a>)`;
+			const p = UsernameElement(item.user.name, item.user.screen_name);
 			div.appendChild(p);
 
 			const remove = document.createElement('button');
