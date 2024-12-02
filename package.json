@@ -29,13 +29,13 @@
 	},
 	"devDependencies": {
 		"@crxjs/vite-plugin": "^1.0.14",
-		"@types/chrome": "^0.0.284",
+		"@types/chrome": "^0.0.287",
 		"@types/firefox-webext-browser": "^120.0.4",
 		"commander": "^12.1.0",
 		"jq": "^1.7.2",
-		"prettier": "^3.3.3",
+		"prettier": "^3.4.1",
 		"typescript": "^5.7.2",
-		"vite": "^4.5.5"
+		"vite": "^6.0.1"
 	},
 	"dependencies": {
 		"html-minifier-terser": "^7.2.0"
