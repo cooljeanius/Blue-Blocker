@@ -33,7 +33,7 @@
 		"@types/firefox-webext-browser": "^120.0.4",
 		"commander": "^12.1.0",
 		"jq": "^1.7.2",
-		"prettier": "^3.4.1",
+		"prettier": "^3.4.2",
 		"typescript": "^5.7.2",
 		"vite": "^4.5.5"
 	},
